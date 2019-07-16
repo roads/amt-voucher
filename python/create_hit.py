@@ -1,26 +1,50 @@
+# -*- coding: utf-8 -*-
+# Copyright 2019 Brett D. Roads. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
+
 """Create a HIT on Amazon Mechanical Turk (AMT).
 
 Arguments:
-    fp_hit_config - The filepath to the AMT HIT configuration file.
-    live (optional) - Boolean indicating if the HIT should be
-        deployed to the live site. The default is false, which
-        deploys the HIT to the sandbox site.
+    fp_hit_config: The filepath to the AMT HIT configuration file.
+    aws_profile: The AWS profile to use.
+    live (optional): Flag indicating if the HIT should be
+        deployed to the live site. If no flag is used, the HIT deploys
+        to the AMT sandbox site.
+    fp_app (optional): Path to application folder.
+    verbose (optional): Sets the verbosity of output.
 
 Example usage:
-    python create_hit.py projects/e001/hit_config.json "mozer" -l True
+    python create_hit.py hit_config.json "roads" --live
 
 """
-import os
-import sys
+
 import json
 import argparse
 from pprint import pprint
+from pathlib import Path
 
 import boto3
 
 
-def main(fp_hit_config, aws_profile, is_live, verbose):
-    """Create HIT."""
+def main(fp_hit_config, aws_profile, is_live, fp_app, verbose):
+    """Execute script."""
+    # Create application folders if necessary.
+    fp_logs = fp_app / Path('logs')
+    if not fp_logs.exists():
+        fp_logs.mkdir(parents=True)
+
     # Load AMT configuration file.
     with open(fp_hit_config) as f:
         hit_cfg = json.load(f)
@@ -35,7 +59,7 @@ def main(fp_hit_config, aws_profile, is_live, verbose):
         if (r == 'yes') or (r == 'y'):
             hitId = create_hit(hit_cfg, is_live, aws_profile)
             print("    Created live HIT {0}".format(hitId))
-            with open(os.path.join('records', 'hitid.txt'), 'a') as f:
+            with open(fp_logs / Path('hit_live.txt'), 'a') as f:
                 f.write("{0}, {1}\n".format(hitId, fp_hit_config))
 
         else:
@@ -45,7 +69,7 @@ def main(fp_hit_config, aws_profile, is_live, verbose):
         hitId = create_hit(hit_cfg, is_live, aws_profile)
 
         print("    Created sandbox HIT {0}".format(hitId))
-        with open(os.path.join('records', 'hitid_sandbox.txt'), 'a') as f:
+        with open(fp_logs / Path('hit_sandbox.txt'), 'a') as f:
             f.write("{0}, {1}\n".format(hitId, fp_hit_config))
 
 
@@ -59,24 +83,23 @@ def create_hit(hit_cfg, is_live, aws_profile):
     endpoint_url = 'https://mturk-requester-sandbox.us-east-1.amazonaws.com'
     if is_live:
         endpoint_url = 'https://mturk-requester.us-east-1.amazonaws.com'
-    # amt_client = boto3.client('mturk', endpoint_url=endpoint_url)
     amt_client = session.client('mturk', endpoint_url=endpoint_url)
 
     # Create question XML.
-    question_xml = external_question_xml(hit_cfg['question_url'])
+    question_xml = external_question_xml(hit_cfg['QuestionUrl'])
 
     response = amt_client.create_hit(
-        MaxAssignments=hit_cfg['max_assignments'],
+        MaxAssignments=hit_cfg['MaxAssignments'],
         # AutoApprovalDelayInSeconds=123,
-        LifetimeInSeconds=hit_cfg['hit_lifetime_s'],
-        AssignmentDurationInSeconds=hit_cfg['assignment_duration_s'],
-        Reward=hit_cfg['hit_reward_dollar'],
-        Title=hit_cfg['hit_title'],
-        Keywords=hit_cfg['hit_keywords'],
-        Description=hit_cfg['hit_description'],
+        LifetimeInSeconds=hit_cfg['LifetimeInSeconds'],
+        AssignmentDurationInSeconds=hit_cfg['AssignmentDurationInSeconds'],
+        Reward=hit_cfg['Reward'],
+        Title=hit_cfg['Title'],
+        Keywords=hit_cfg['Keywords'],
+        Description=hit_cfg['Description'],
         Question=question_xml,
         # RequesterAnnotation='string',
-        QualificationRequirements=hit_cfg['quals'],
+        QualificationRequirements=hit_cfg['QualificationRequirements'],
         # UniqueRequestToken='string',
         # AssignmentReviewPolicy={
         #     'PolicyName': 'string',
@@ -135,7 +158,7 @@ def print_warnings(hit_cfg, is_live):
             "    WARNING:  You are creating a live HIT that uses real ",
             "money."
         )
-        if hit_cfg['max_assignments'] > 9:
+        if hit_cfg['MaxAssignments'] > 9:
             print(
                 "    WARNING: AMT charges an additional 20%% fee ",
                 "for HITs with more than 9 assignments."
@@ -159,18 +182,6 @@ def external_question_xml(question_url):
     return question_xml
 
 
-def str2bool(v):
-    """Parse argument strings to a boolean value."""
-    if isinstance(v, bool):
-        return v
-    if v.lower() in ('yes', 'true', 't', 'y', '1'):
-        return True
-    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
-        return False
-    else:
-        raise argparse.ArgumentTypeError('Boolean value expected.')
-
-
 if __name__ == "__main__":
     # Parse arguments.
     parser = argparse.ArgumentParser()
@@ -178,6 +189,7 @@ if __name__ == "__main__":
         "fp_hit_config", type=str,
         help="String indicating the path to the desired HIT configuration."
     )
+
     parser.add_argument(
         "aws_profile", type=str,
         help=(
@@ -188,17 +200,31 @@ if __name__ == "__main__":
             "configuration.html."
         )
     )
+
     parser.add_argument(
         '--live', dest='live', action='store_true',
         help=(
-            "Deploys the HIT to the live AMT site. If option is not specified"
-            ", the HIT is deployed to the AMT sandbox site."
+            "Deploys the HIT to the live AMT site. If flag is not used, the"
+            " HIT is deployed to the AMT sandbox site."
         )
     )
     parser.set_defaults(live=False)
+
+    parser.add_argument(
+        "--fp_app", default=Path.home() / Path('.amt-voucher'),
+        help=(
+            "File path for application directory which holds configuration"
+            " files and outputs."
+        )
+    )
+
     parser.add_argument(
         "-v", "--verbose", type=int, default=0,
         help="Increase output verbosity."
     )
+
     args = parser.parse_args()
-    main(args.fp_hit_config, args.aws_profile, args.live, args.verbose)
+    main(
+        args.fp_hit_config, args.aws_profile, args.live, args.fp_app,
+        args.verbose
+    )

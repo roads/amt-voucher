@@ -2,6 +2,7 @@ CREATE DATABASE IF NOT EXISTS amt_voucher;
 USE amt_voucher;
 CREATE TABLE IF NOT EXISTS voucher (
 voucher_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+amt_is_live TINYINT(1) DEFAULT 0,
 amt_assignment_id CHAR(255) NOT NULL,
 amt_worker_id CHAR(255) NOT NULL,
 amt_hit_id CHAR(255) NOT NULL,

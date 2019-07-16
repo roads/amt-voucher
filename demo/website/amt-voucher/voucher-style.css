@@ -1,0 +1,40 @@
+.voucher__present{
+    display: none;
+}
+
+.voucher__absent{
+    display: none;
+}
+
+
+.voucher__label{
+    font-size: 1.3em;
+}
+
+.voucher__hint{
+    font-size: 1.3em;
+    color: gray;
+    text-align: center;
+}
+
+.voucher__box {
+    padding: 10px;
+    background-color: #ccc;
+    border: 3px solid gray;
+    border-radius: 5px;
+    text-align: center;
+}
+
+.voucher__code{
+    font-size: 2em;
+    background-color: inherit;
+    resize: none;
+    width: 100%;
+    text-align: center;
+    border: none;
+    outline: none;
+}
+
+.voucher__present{
+    display: none;
+}

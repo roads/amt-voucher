@@ -1,11 +1,7 @@
 .DS_Store
 .pytest_cache/
 .vscode/
-projects/*
-records/*.txt
-!projects/voucher-demo/*
+demo/deploy_website.py
 remove_all_hits.py
-review_reviewable.py
-deploy_website.py
 for_dockerfile.txt
 TODO.txt

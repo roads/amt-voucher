@@ -1,0 +1,36 @@
+{
+    "QuestionUrl": "https://mywebsite.com/voucher-demo/amt-voucher/amt_index.php",
+    "Title": "AMT voucher demo.",
+    "Description": "AMT voucher demo.",
+    "Keywords": "demo",
+    "LifetimeInSeconds":  1200,
+    "AssignmentDurationInSeconds":  600,
+    "Reward": "0.01",
+    "MaxAssignments": 1,
+    "QualificationRequirements": 	[
+        {
+            "QualificationTypeId":"00000000000000000071",
+            "Comparator":"In",
+            "LocaleValues":[
+                {"Country":"US"},
+                {"Country":"CA"}
+            ]
+        },
+        {
+            "QualificationTypeId": "00000000000000000040",
+            "Comparator": "GreaterThanOrEqualTo",
+            "IntegerValues": [1]
+        },
+        {
+            "QualificationTypeId": "000000000000000000L0",
+            "Comparator": "GreaterThanOrEqualTo",
+            "IntegerValues": [1]
+        }
+    ]
+}
+
+
+
+
+        
+
