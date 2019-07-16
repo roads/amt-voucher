@@ -7,7 +7,7 @@ In brief, this code uses AMT's External Question format and a voucher system. On
 Throughout this document generality is achieved by using two stand in variables:
 1. `<user>` refers to your user name on the host server.
 2. `mywebsite.com` refers to your registered domain name.
-The demo code must be modified in two places to work. First, the hit configuration `demo.json` must be modified so that the QuestionUrl string points to a real URL. Second, the amt_index.php file must be modified so that the `amt-redirect-form` points to a real URL.
+The demo code must be modified in two places to work. First, the HIT configuration `demo.json` must be modified so that the QuestionUrl string points to a real URL. Second, the amt_index.php file must be modified so that the `amt-redirect-form` points to a real URL.
 
 I'll also assume the text editor nano is available and use that throught the document. Similar command line text editors can be used instead.
 
@@ -100,8 +100,8 @@ If everything is setup correctly, you should not be able to visit https://mywebs
 
 Note that the PHP file `post-voucher.php` includes some simple checks to prevent a user abuse. Specifically only one voucher code can be requested for each unique pair of worker ID and assignment ID. As a consequence, if the demo website is visited without being redirected from AMT, the worker ID and assignment ID are both blank. Once a code has been generated for a blank worker ID and blank assignment ID combo, you cannot generate a new code. If you want to be able to generate a code, you must remove this "blank" entry from the `amt_voucher` database. Refreshing the page removes the voucher code.
 
-## 2. Creating hits.
-To create a hit you must first define a HIT configuration. The variable names directly correspond to variable names used by the Boto3 library. These are specified in JSON format. Examples can be found `amt-voucher/demo/hit_configs/`. Of particular importance are the fields `QuestionUrl`, `Reward`, and `MaxAssignments`. The QuestionUrl tell AMT which page to load for the preview and the actual HIT. In our case, this is a simple web page with basic instructions that also allows a worker to submit a voucher code. The `Reward` and `MaxAssignments` determine the amount workers are paid (in USD) and how many assignments to create for the HIT.
+## 2. Creating HITs.
+To create a HIT you must first define a HIT configuration. The variable names directly correspond to variable names used by the Boto3 library. These are specified in JSON format. Examples can be found `amt-voucher/demo/hit_configs/`. Of particular importance are the fields `QuestionUrl`, `Reward`, and `MaxAssignments`. The QuestionUrl tell AMT which page to load for the preview and the actual HIT. In our case, this is a simple web page with basic instructions that also allows a worker to submit a voucher code. The `Reward` and `MaxAssignments` determine the amount workers are paid (in USD) and how many assignments to create for the HIT.
 
 Once a HIT configuration has been created, you can create a HIT by calling the python script `create_hit.py`. This script requires to arguments: the path to the HIT configuration file and the name of an AWS profile. You can only use a profile name which is included in the shared credentials file (e.g., `.aws/credentials`). For example, you could call the script using the following command: ``python create_hit.py hit_config.json 'roads'``.
 
