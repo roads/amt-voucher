@@ -60,7 +60,9 @@ def main(fp_hit_config, aws_profile, is_live, fp_app, verbose):
             hitId = create_hit(hit_cfg, is_live, aws_profile)
             print("    Created live HIT {0}".format(hitId))
             with open(fp_logs / Path('hit_live.txt'), 'a') as f:
-                f.write("{0}, {1}\n".format(hitId, fp_hit_config))
+                f.write(
+                    "{0}, {1}, {2}\n".format(aws_profile, hitId, fp_hit_config)
+                )
 
         else:
             print("    Did not create HIT")
@@ -70,7 +72,9 @@ def main(fp_hit_config, aws_profile, is_live, fp_app, verbose):
 
         print("    Created sandbox HIT {0}".format(hitId))
         with open(fp_logs / Path('hit_sandbox.txt'), 'a') as f:
-            f.write("{0}, {1}\n".format(hitId, fp_hit_config))
+            f.write(
+                "{0}, {1}, {2}\n".format(aws_profile, hitId, fp_hit_config)
+            )
 
 
 def create_hit(hit_cfg, is_live, aws_profile):
@@ -155,12 +159,12 @@ def print_warnings(hit_cfg, is_live):
     """Print relevant warnings."""
     if is_live:
         print(
-            "    WARNING:  You are creating a live HIT that uses real ",
+            "    WARNING:  You are creating a live HIT that uses real "
             "money."
         )
         if hit_cfg['MaxAssignments'] > 9:
             print(
-                "    WARNING: AMT charges an additional 20%% fee ",
+                "    WARNING: AMT charges an additional 20%% fee "
                 "for HITs with more than 9 assignments."
             )
 

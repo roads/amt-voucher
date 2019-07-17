@@ -90,7 +90,7 @@ def inspect_hit(amt_client, mydb, mycursor, hit_id):
     resp = amt_client.get_hit(HITId=hit_id)
     print_hit_summary(resp)
 
-    l = amt_client.list_assignments_for_hit(HITId=hit_id) 
+    l = amt_client.list_assignments_for_hit(HITId=hit_id)
     n_assignment = l['NumResults']
     for i_assignment in range(n_assignment):
         amt_assignment_id = l['Assignments'][i_assignment]['AssignmentId']
