@@ -53,7 +53,6 @@
                 workerId: amtParameters['workerId'],
                 amtAssignmentId: amtParameters["assignmentId"],
                 amtHitId: amtParameters["hitId"],
-                amtSubmitTo: amtParameters["turkSubmitTo"],
                 amtIsLive: amtParameters["isLive"],
                 voucherCode: ""
             };

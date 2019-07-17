@@ -120,6 +120,7 @@
                             <input type="hidden" class="assignmentId" name="assignmentId" value="" />
                             <input type="hidden" class="workerId" name="workerId" value="" />
                             <input type="hidden" class="hitId" name="hitId" value="" />
+                            <input type="hidden" class="isLive" name="isLive" value="" />
                             <input type="submit" class="submit-full" value="Go to experiment" />
                         </form>
                         
@@ -160,12 +161,15 @@
                 var hitId = getParameterByName('hitId');
                 var workerId = getParameterByName('workerId');
                 var turkSubmitTo = getParameterByName('turkSubmitTo');
+                var isLive = -1
 
                 var submitUrl = ""
                 if (turkSubmitTo === "https://workersandbox.mturk.com") {
                     submitUrl = "https://workersandbox.mturk.com/mturk/externalSubmit"
+                    isLive = 0
                 } else if (turkSubmitTo === "https://www.mturk.com") {
                     submitUrl = "https://www.mturk.com/mturk/externalSubmit"
+                    isLive = 1
                 }
                 
                 if (assignmentId == 'ASSIGNMENT_ID_NOT_AVAILABLE') {
@@ -180,6 +184,7 @@
                     $(".assignmentId").val(assignmentId);
                     $(".hitId").val(hitId);
                     $(".workerId").val(workerId);
+                    $(".isLive").val(isLive);
 
                     $("#amt-submit-form").attr('action', submitUrl);
                 }
