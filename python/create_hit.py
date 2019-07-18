@@ -17,13 +17,7 @@
 """Create a HIT on Amazon Mechanical Turk (AMT).
 
 Arguments:
-    fp_hit_config: The filepath to the AMT HIT configuration file.
-    aws_profile: The AWS profile to use.
-    live (optional): Flag indicating if the HIT should be
-        deployed to the live site. If no flag is used, the HIT deploys
-        to the AMT sandbox site.
-    fp_app (optional): Path to application folder.
-    verbose (optional): Sets the verbosity of output.
+    See argument parser or execute `python create_hit.py -h`.
 
 Example usage:
     python create_hit.py hit_config.json "roads" --live
@@ -41,7 +35,7 @@ import boto3
 def main(fp_hit_config, aws_profile, is_live, fp_app, verbose):
     """Execute script."""
     # Create application folders if necessary.
-    fp_logs = fp_app / Path('logs')
+    fp_logs = fp_app / Path('logs', aws_profile)
     if not fp_logs.exists():
         fp_logs.mkdir(parents=True)
 
@@ -61,7 +55,7 @@ def main(fp_hit_config, aws_profile, is_live, fp_app, verbose):
             print("    Created live HIT {0}".format(hitId))
             with open(fp_logs / Path('hit_live.txt'), 'a') as f:
                 f.write(
-                    "{0}, {1}, {2}\n".format(aws_profile, hitId, fp_hit_config)
+                    "{0}, {1}\n".format(hitId, fp_hit_config)
                 )
 
         else:
@@ -73,7 +67,7 @@ def main(fp_hit_config, aws_profile, is_live, fp_app, verbose):
         print("    Created sandbox HIT {0}".format(hitId))
         with open(fp_logs / Path('hit_sandbox.txt'), 'a') as f:
             f.write(
-                "{0}, {1}, {2}\n".format(aws_profile, hitId, fp_hit_config)
+                "{0}, {1}\n".format(hitId, fp_hit_config)
             )
 
 

@@ -1,6 +1,7 @@
 .DS_Store
 .pytest_cache/
 .vscode/
+logs/*
 demo/deploy_website.py
 remove_all_hits.py
 for_dockerfile.txt
