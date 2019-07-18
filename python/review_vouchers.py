@@ -28,12 +28,10 @@ Note:
     voucher.
 
 Arguments:
-    aws_profile: he AWS profile to use.
-    live (optional): Flag indicating if live HITs should be reviewed.
-    verbose (optional): Sets the verbosity of output.
+    See argument parser or execute `python review_vouchers.py -h`.
 
 Example usage:
-     python review_reviewable.py "mozer" -l True
+     python review_vouchers.py "mozer" -l True
 
 """
 
@@ -51,19 +49,22 @@ STATUS_REDEEMED = 1
 STATUS_EXPIRED = 2
 
 
-def main(profile, is_live, verbose):
+def main(aws_profile, is_live, is_all, fp_app, verbose):
     """Run script."""
     fp_mysql_cred = Path.home() / Path('.mysql/credentials')
 
     # AMT client.
-    session = boto3.Session(profile_name=profile)
+    session = boto3.Session(profile_name=aws_profile)
 
-    endpoint_url = 'https://mturk-requester-sandbox.us-east-1.amazonaws.com'
     if is_live:
         print("Mode: LIVE")
         endpoint_url = 'https://mturk-requester.us-east-1.amazonaws.com'
+        fp_hit_log = fp_app / Path('logs', aws_profile, 'hit_live.txt')
     else:
         print("Mode: SANDBOX")
+        endpoint_url = 'https://mturk-requester-sandbox.us-east-1.amazonaws.com'
+        fp_hit_log = fp_app / Path('logs', aws_profile, 'hit_sandbox.txt')
+
     amt_client = session.client('mturk', endpoint_url=endpoint_url)
 
     # MySQL configuration.
@@ -77,12 +78,33 @@ def main(profile, is_live, verbose):
     )
     mycursor = mydb.cursor()
 
-    resp = amt_client.list_reviewable_hits()
-    n_hit = resp['NumResults']
+    #  Assemble HIT ID list.
+    hit_id_list = []
+    if is_all:
+        # Review all reviewable HITS.
+        resp = amt_client.list_reviewable_hits()
+        n_hit = resp['NumResults']
+        for i_hit in range(n_hit):
+            hit_id_list.append(
+                resp['HITs'][i_hit]['HITId']
+            )
+    else:
+        # Only review HITS stored in logs.
+        print(fp_hit_log)
+        if fp_hit_log.exists():
+            f = open(fp_hit_log, 'r')
+            for ln in f:
+                parts = ln.split(',')
+                # print(parts[0].strip())
+                hit_id_list.append(
+                    parts[0].strip()
+                )
+            f.close()
+
+    n_hit = len(hit_id_list)
     print('Reviewable HITs: {0}\n'.format(n_hit))
     for i_hit in range(n_hit):
-        hit_id = resp['HITs'][i_hit]['HITId']
-        inspect_hit(amt_client, mydb, mycursor, hit_id)
+        inspect_hit(amt_client, mydb, mycursor, hit_id_list[i_hit])
 
 
 def inspect_hit(amt_client, mydb, mycursor, hit_id):
@@ -229,6 +251,7 @@ def update_voucher_status(mydb, mycursor, db_voucher_id, status_code):
 if __name__ == "__main__":
     # Parse arguments.
     parser = argparse.ArgumentParser()
+
     parser.add_argument(
         "aws_profile", type=str,
         help=(
@@ -239,6 +262,7 @@ if __name__ == "__main__":
             "configuration.html."
         )
     )
+
     parser.add_argument(
         '--live', dest='live', action='store_true',
         help=(
@@ -247,9 +271,31 @@ if __name__ == "__main__":
         )
     )
     parser.set_defaults(live=False)
+
+    parser.add_argument(
+        '--all', dest='all', action='store_true',
+        help=(
+            "Flag indicating that all available HITs should be "
+            "reviewed. If flag is not used, only HITs stored in the "
+            "logs are reviewed. Note that the available HITs will "
+            "still be limited by the used AWS profile and whether live "
+            "or sandbox HITs are being reviewed."
+        )
+    )
+    parser.set_defaults(all=False)
+
+    parser.add_argument(
+        "--fp_app", default=Path.home() / Path('.amt-voucher'),
+        help=(
+            "File path for application directory which holds configuration"
+            " files and outputs."
+        )
+    )
+
     parser.add_argument(
         "-v", "--verbose", type=int, default=0,
         help="Increase output verbosity."
     )
+
     args = parser.parse_args()
-    main(args.aws_profile, args.live, args.verbose)
+    main(args.aws_profile, args.live, args.all, args.fp_app, args.verbose)
