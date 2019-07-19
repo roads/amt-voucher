@@ -28,6 +28,7 @@ import json
 import argparse
 from pprint import pprint
 from pathlib import Path
+import datetime
 
 import boto3
 
@@ -45,6 +46,8 @@ def main(fp_hit_config, aws_profile, is_live, fp_app, verbose):
     if verbose > 0:
         pprint(hit_cfg)
 
+    ymd_str = datetime.datetime.today().strftime('%Y-%m-%d')
+
     if is_live:
         # Create a live HIT.
         print_warnings(hit_cfg, is_live)
@@ -55,7 +58,7 @@ def main(fp_hit_config, aws_profile, is_live, fp_app, verbose):
             print("    Created live HIT {0}".format(hitId))
             with open(fp_logs / Path('hit_live.txt'), 'a') as f:
                 f.write(
-                    "{0}, {1}\n".format(hitId, fp_hit_config)
+                    "{0}, {1}, {2}\n".format(hitId, ymd_str, fp_hit_config)
                 )
 
         else:
@@ -67,7 +70,7 @@ def main(fp_hit_config, aws_profile, is_live, fp_app, verbose):
         print("    Created sandbox HIT {0}".format(hitId))
         with open(fp_logs / Path('hit_sandbox.txt'), 'a') as f:
             f.write(
-                "{0}, {1}\n".format(hitId, fp_hit_config)
+                "{0}, {1}, {2}\n".format(hitId, ymd_str, fp_hit_config)
             )
 
 
