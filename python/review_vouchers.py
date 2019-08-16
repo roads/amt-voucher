@@ -37,6 +37,7 @@ Example usage:
 
 import argparse
 import configparser
+import datetime
 from pathlib import Path
 import hashlib
 import xml.etree.ElementTree as ET
@@ -49,7 +50,7 @@ STATUS_REDEEMED = 1
 STATUS_EXPIRED = 2
 
 
-def main(aws_profile, is_live, is_all, fp_app, verbose):
+def main(aws_profile, is_live, is_all, fp_app, n_last, verbose):
     """Run script."""
     fp_mysql_cred = Path.home() / Path('.mysql/credentials')
 
@@ -59,24 +60,23 @@ def main(aws_profile, is_live, is_all, fp_app, verbose):
     if is_live:
         print("Mode: LIVE")
         endpoint_url = 'https://mturk-requester.us-east-1.amazonaws.com'
-        fp_hit_log = fp_app / Path('logs', aws_profile, 'hit_live.txt')
+        fp_hit_log = fp_app / Path(aws_profile, 'hit_live.txt')
     else:
         print("Mode: SANDBOX")
         endpoint_url = 'https://mturk-requester-sandbox.us-east-1.amazonaws.com'
-        fp_hit_log = fp_app / Path('logs', aws_profile, 'hit_sandbox.txt')
+        fp_hit_log = fp_app / Path(aws_profile, 'hit_sandbox.txt')
 
     amt_client = session.client('mturk', endpoint_url=endpoint_url)
 
     # MySQL configuration.
     config = configparser.ConfigParser()
     config.read(fp_mysql_cred)
-    mydb = mysql.connector.connect(
+    my_cxn = mysql.connector.connect(
         host=config['amt_voucher']['servername'],
         user=config['amt_voucher']['username'],
         passwd=config['amt_voucher']['password'],
         database=config['amt_voucher']['database']
     )
-    mycursor = mydb.cursor()
 
     #  Assemble HIT ID list.
     hit_id_list = []
@@ -102,15 +102,24 @@ def main(aws_profile, is_live, is_all, fp_app, verbose):
             f.close()
 
     n_hit = len(hit_id_list)
-    print('Reviewable HITs: {0}\n'.format(n_hit))
+    print('Reviewable HITs: {0}'.format(n_hit))
+
+    # Only inspect the latest HITs.
+    hit_id_list = hit_id_list[-n_last:]
+
+    n_hit = len(hit_id_list)
+    print('Inspecting {0} HITs\n'.format(n_hit))
     for i_hit in range(n_hit):
-        inspect_hit(amt_client, mydb, mycursor, hit_id_list[i_hit])
+        inspect_hit(amt_client, my_cxn, hit_id_list[i_hit])
+
+    # Close the connection.
+    my_cxn.close()
 
 
-def inspect_hit(amt_client, mydb, mycursor, hit_id):
+def inspect_hit(amt_client, my_cxn, hit_id):
     """Inspect HIT for reviewable assignments."""
     resp = amt_client.get_hit(HITId=hit_id)
-    print_hit_summary(resp)
+    is_full = print_hit_summary(resp)
 
     l = amt_client.list_assignments_for_hit(HITId=hit_id)
     n_assignment = l['NumResults']
@@ -123,13 +132,11 @@ def inspect_hit(amt_client, mydb, mycursor, hit_id):
             print('    AMT Worker ID {0}'.format(amt_worker_id))
 
             (redeem_voucher, db_voucher_id) = verify_voucher_hash(
-                mydb, mycursor, amt_worker_id, amt_assignment_id,
+                my_cxn, amt_worker_id, amt_assignment_id,
                 amt_voucher_hash
             )
             if redeem_voucher:
-                update_voucher_status(
-                    mydb, mycursor, db_voucher_id, STATUS_REDEEMED
-                )
+                update_voucher_status(my_cxn, db_voucher_id, STATUS_REDEEMED)
                 response = amt_client.approve_assignment(
                     AssignmentId=amt_assignment_id,
                     RequesterFeedback='Thank you for your work.'
@@ -139,13 +146,25 @@ def inspect_hit(amt_client, mydb, mycursor, hit_id):
                     print('      Assignment sucessfully approved.')
                 else:
                     print('      WARNING: Assignment may not have been approved successfully.')
-    print('\n')
+    if not is_full:
+        print('\n')
 
 
-def print_hit_summary(resp):
+def print_hit_summary(resp, verbose=0):
     """Print HIT summary.
 
     The variable resp is the resturned result of the `get_hit` method.
+
+    Arguments:
+        resp: AMT response dictionary.
+        verbose: The verbosity level. If zero, only print if the
+            number of completed assignments doesn't match the maximum
+            number of available assignments.
+
+    Returns:
+        is_full: A boolean variable indicating if all assigments have
+            been completed.
+
     """
     hit_id = resp['HIT']['HITId']
     title = resp['HIT']['Title']
@@ -154,15 +173,33 @@ def print_hit_summary(resp):
     n_complete = resp['HIT']['NumberOfAssignmentsCompleted']
     n_pending = resp['HIT']['NumberOfAssignmentsPending']
     n_available = resp['HIT']['NumberOfAssignmentsAvailable']
+    dt_expiration = resp['HIT']['Expiration']
 
-    print('HIT ID: {0}'.format(hit_id))
-    print('  Title: {0}'.format(title))
-    print('  Status: {0}'.format(hit_status))
-    print('  max | comp, pend, avail')
-    print('  {0} | {1}, {2}, {3} '.format(
-            n_max, n_complete, n_pending, n_available
+    is_expired = False
+    dt_now = datetime.datetime.now(datetime.timezone.utc)
+    if dt_expiration < dt_now:
+        is_expired = True
+
+    do_print = True
+    is_full = False
+    if (n_complete == n_max) and not is_expired and (verbose == 0):
+        do_print = False
+        is_full = True
+    if ((n_complete + n_available) == n_max) and is_expired and (verbose == 0):
+        do_print = False
+        is_full = True
+
+    if do_print:
+        print('HIT ID: {0}'.format(hit_id))
+        print('  Title: {0}'.format(title))
+        print('  Status: {0}'.format(hit_status))
+        print('  max | comp, pend, avail')
+        print('  {0} | {1}, {2}, {3} '.format(
+                n_max, n_complete, n_pending, n_available
+            )
         )
-    )
+
+    return is_full
 
 
 def parse_amt_answer(amt_assignment_answer):
@@ -184,7 +221,7 @@ def parse_amt_answer(amt_assignment_answer):
 
 
 def verify_voucher_hash(
-        mydb, mycursor, amt_worker_id, amt_assignment_id, amt_voucher_hash):
+        my_cxn, amt_worker_id, amt_assignment_id, amt_voucher_hash):
     """Check if provided voucher hash matches database etnry."""
     entry_exist = False
     is_match = False
@@ -192,11 +229,13 @@ def verify_voucher_hash(
     redeem_voucher = False
     db_voucher_id = None
 
+    my_cursor = my_cxn.cursor()
     sql = "SELECT voucher_id, voucher_hash, status_code FROM voucher WHERE amt_worker_id=%s AND amt_assignment_id=%s"
     vals = (amt_worker_id, amt_assignment_id)
-    mycursor.execute(sql, vals)
+    my_cursor.execute(sql, vals)
+    myresult = my_cursor.fetchall()
+    my_cursor.close()
 
-    myresult = mycursor.fetchall()
     n_row = len(myresult)
     if n_row == 0:
         print('      WARNING: No voucher entry for queried worker-assignment.')
@@ -234,7 +273,7 @@ def verify_voucher_hash(
     return redeem_voucher, db_voucher_id
 
 
-def update_voucher_status(mydb, mycursor, db_voucher_id, status_code):
+def update_voucher_status(my_cxn, db_voucher_id, status_code):
     """Update status code for voucher.
 
     Status Codes:
@@ -243,9 +282,11 @@ def update_voucher_status(mydb, mycursor, db_voucher_id, status_code):
         2 - not valid, not redeemed, expired
     """
     sql = "UPDATE voucher SET status_code={0:d} WHERE voucher_id={1:d}".format(status_code, db_voucher_id)
-    mycursor.execute(sql)
-    mydb.commit()
-    print('      SET status_code={0:d} | {1} row(s) affected'.format(status_code, mycursor.rowcount))
+    my_cursor = my_cxn.cursor()
+    my_cursor.execute(sql)
+    my_cxn.commit()
+    print('      SET status_code={0:d} | {1} row(s) affected'.format(status_code, my_cursor.rowcount))
+    my_cursor.close()
 
 
 if __name__ == "__main__":
@@ -255,8 +296,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "aws_profile", type=str,
         help=(
-            "String indicating AWS profile to use. Prfiles are assumed to be"
-            "stored in a shared credentials file (~/.aws/credentials). For "
+            "String indicating AWS profile to use. Profiles are assumed to be"
+            " stored in a shared credentials file (~/.aws/credentials). For "
             " more details regarding the creation of profiles see https://"
             "boto3.amazonaws.com/v1/documentation/api/latest/guide/"
             "configuration.html."
@@ -285,10 +326,17 @@ if __name__ == "__main__":
     parser.set_defaults(all=False)
 
     parser.add_argument(
-        "--fp_app", default=Path.home() / Path('.amt-voucher'),
+        "--fp_app", default=Path.home() / Path('.amt-voucher', 'logs'),
         help=(
             "File path for application directory which holds configuration"
             " files and outputs."
+        )
+    )
+
+    parser.add_argument(
+        "--n_last", default=1,
+        help=(
+            "The number of most recent HITs to inspect."
         )
     )
 
@@ -298,4 +346,4 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    main(args.aws_profile, args.live, args.all, args.fp_app, args.verbose)
+    main(args.aws_profile, args.live, args.all, args.fp_app, args.n_last, args.verbose)
