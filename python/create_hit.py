@@ -24,16 +24,16 @@ Example usage:
 
 """
 
-import json
 import argparse
-from pprint import pprint
-from pathlib import Path
 import datetime
+import json
+from pathlib import Path
+from pprint import pprint
 
 import boto3
 
 
-def main(fp_hit_config, aws_profile, is_live, fp_app, verbose):
+def main(fp_hit_config, aws_profile, n_assignment, is_live, fp_app, verbose):
     """Execute script."""
     # Create application folders if necessary.
     fp_logs = fp_app / Path('logs', aws_profile)
@@ -50,11 +50,11 @@ def main(fp_hit_config, aws_profile, is_live, fp_app, verbose):
 
     if is_live:
         # Create a live HIT.
-        print_warnings(hit_cfg, is_live)
+        print_warnings(hit_cfg, n_assignment, is_live)
         print("Are you sure you want to create the HIT (yes/no)?")
         r = input()
         if (r == 'yes') or (r == 'y'):
-            hitId = create_hit(hit_cfg, is_live, aws_profile)
+            hitId = create_hit(hit_cfg, n_assignment, is_live, aws_profile)
             print("    Created live HIT {0}".format(hitId))
             with open(fp_logs / Path('hit_live.txt'), 'a') as f:
                 f.write(
@@ -65,7 +65,7 @@ def main(fp_hit_config, aws_profile, is_live, fp_app, verbose):
             print("    Did not create HIT")
     else:
         # Create a HIT on AMT's sandbox site.
-        hitId = create_hit(hit_cfg, is_live, aws_profile)
+        hitId = create_hit(hit_cfg, n_assignment, is_live, aws_profile)
 
         print("    Created sandbox HIT {0}".format(hitId))
         with open(fp_logs / Path('hit_sandbox.txt'), 'a') as f:
@@ -74,7 +74,7 @@ def main(fp_hit_config, aws_profile, is_live, fp_app, verbose):
             )
 
 
-def create_hit(hit_cfg, is_live, aws_profile):
+def create_hit(hit_cfg, n_assignment, is_live, aws_profile):
     """Create HIT."""
     # Start client.
     session = boto3.Session(profile_name=aws_profile)
@@ -90,7 +90,7 @@ def create_hit(hit_cfg, is_live, aws_profile):
     question_xml = external_question_xml(hit_cfg['QuestionUrl'])
 
     response = amt_client.create_hit(
-        MaxAssignments=hit_cfg['MaxAssignments'],
+        MaxAssignments=n_assignment,
         # AutoApprovalDelayInSeconds=123,
         LifetimeInSeconds=hit_cfg['LifetimeInSeconds'],
         AssignmentDurationInSeconds=hit_cfg['AssignmentDurationInSeconds'],
@@ -152,14 +152,14 @@ def create_hit(hit_cfg, is_live, aws_profile):
     return hitId
 
 
-def print_warnings(hit_cfg, is_live):
+def print_warnings(hit_cfg, n_assignment, is_live):
     """Print relevant warnings."""
     if is_live:
         print(
             "    WARNING:  You are creating a live HIT that uses real "
             "money."
         )
-        if hit_cfg['MaxAssignments'] > 9:
+        if n_assignment > 9:
             print(
                 "    WARNING: AMT charges an additional 20%% fee "
                 "for HITs with more than 9 assignments."
@@ -203,6 +203,11 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "-n", "--n_assignment", type=int, default=1,
+        help="The maximum number of assignments."
+    )
+
+    parser.add_argument(
         '--live', dest='live', action='store_true',
         help=(
             "Deploys the HIT to the live AMT site. If flag is not used, the"
@@ -226,6 +231,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     main(
-        args.fp_hit_config, args.aws_profile, args.live, args.fp_app,
-        args.verbose
+        args.fp_hit_config, args.aws_profile, args.n_assignment, args.live,
+        args.fp_app, args.verbose
     )
