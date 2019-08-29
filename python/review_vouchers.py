@@ -334,7 +334,7 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--n_last", default=1,
+        "--n_last", type=int, default=1,
         help=(
             "The number of most recent HITs to inspect."
         )
@@ -346,4 +346,7 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    main(args.aws_profile, args.live, args.all, args.fp_app, args.n_last, args.verbose)
+    main(
+        args.aws_profile, args.live, args.all, args.fp_app, args.n_last,
+        args.verbose
+    )
