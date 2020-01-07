@@ -171,9 +171,9 @@ Common qualifications
             "IntegerValues": [90]
         }
     
-    Not eligable if has qualification 32O4TCGYF79JBVY6IAIULRFG5O5D17
+    Not eligable if worker has qualification 32O4TCGYF79JBVY6IAIULRFG5O5D17
         {
             "QualificationTypeId":"32O4TCGYF79JBVY6IAIULRFG5O5D17",
-            "Comparator":"Exist",
-            "ActionsGuarded":"PreviewAndAccept"
+            "Comparator":"DoesNotExist",
+            "ActionsGuarded":"DiscoverPreviewAndAccept"
         }
