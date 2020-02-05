@@ -31,7 +31,7 @@ Arguments:
     See argument parser or execute `python review_vouchers.py -h`.
 
 Example usage:
-     python review_vouchers.py "mozer" -l True
+     python review_vouchers.py "roads" --live
 
 """
 
